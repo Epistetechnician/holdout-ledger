@@ -1,0 +1,6 @@
+sha256 8aef95dbe960abe7e784868e2d07513ed9b5f4405ec10672f3238a0ba6c86b89
+M 800
+N 495141
+split_seed 20261104
+acc_reserve min/median/max 0.4338 0.6740 0.8691
+acc_hold-vs-reserve max abs diff 0.0043
