@@ -2,6 +2,7 @@
     python -m hl.experiment GRID SEED_LO SEED_HI OUT.jsonl
 GRID is "confirmatory" or "pilot". The grid is frozen in PREREG.md before confirmatory seeds are run.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -20,12 +21,22 @@ _ENVS: dict = {}
 
 def grid(name: str):
     if name == "pilot":
-        for reg, n, prop, gate, K in itertools.product(["early", "late"], [5000, 20000], ["pool", "patch", "mixed"],
-                                                       ["seq", "mdl", "batch"], [256, 1024]):
+        for reg, n, prop, gate, K in itertools.product(
+            ["early", "late"],
+            [5000, 20000],
+            ["pool", "patch", "mixed"],
+            ["seq", "mdl", "batch"],
+            [256, 1024],
+        ):
             yield dict(regime=reg, n=n, proposer=prop, gate=gate, K=K, rho=RHO)
         return
-    for reg, n, prop, gate, K in itertools.product(["early", "late"], [5000, 20000, 100000], ["pool", "patch", "mixed"],
-                                                   ["seq", "seqm", "mdl", "batch"], [64, 256, 1024, 4096]):
+    for reg, n, prop, gate, K in itertools.product(
+        ["early", "late"],
+        [5000, 20000, 100000],
+        ["pool", "patch", "mixed"],
+        ["seq", "seqm", "mdl", "batch"],
+        [64, 256, 1024, 4096],
+    ):
         yield dict(regime=reg, n=n, proposer=prop, gate=gate, K=K, rho=RHO)
     # sensitivity of the stylised attack to its density
     for reg, prop, rho in itertools.product(["early", "late"], ["patch", "mixed"], [0.002, 0.02]):
@@ -36,7 +47,15 @@ def work(task):
     cfg, seed = task
     env = _ENVS.setdefault(cfg["regime"], Env(DATA, regime=cfg["regime"]))
     t0 = time.time()
-    r = run(env, n=cfg["n"], proposer=cfg["proposer"], gate=cfg["gate"], K=cfg["K"], seed=seed, rho=cfg["rho"])
+    r = run(
+        env,
+        n=cfg["n"],
+        proposer=cfg["proposer"],
+        gate=cfg["gate"],
+        K=cfg["K"],
+        seed=seed,
+        rho=cfg["rho"],
+    )
     r["regime"], r["rho"], r["secs"] = cfg["regime"], cfg["rho"], round(time.time() - t0, 2)
     return r
 

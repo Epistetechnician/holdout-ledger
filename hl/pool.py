@@ -3,6 +3,7 @@
 The pool is generated from the TRAIN split only. Holdout and reserve are never seen
 by any model, so indexing a pool member costs log2(M) bits of description, not its weights.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -13,7 +14,11 @@ from pathlib import Path
 import numpy as np
 from joblib import Parallel, delayed
 from sklearn.datasets import fetch_covtype
-from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier, RandomForestClassifier
+from sklearn.ensemble import (
+    ExtraTreesClassifier,
+    HistGradientBoostingClassifier,
+    RandomForestClassifier,
+)
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import GaussianNB
 from sklearn.pipeline import make_pipeline
@@ -69,15 +74,21 @@ def fit_predict(spec, Xtr, ytr, Xall):
     elif fam == "xtree":
         mdl = ExtraTreeClassifier(max_depth=spec["depth"], random_state=spec["seed"])
     elif fam == "forest":
-        mdl = RandomForestClassifier(n_estimators=spec["trees"], max_depth=spec["depth"], random_state=spec["seed"], n_jobs=1)
+        mdl = RandomForestClassifier(
+            n_estimators=spec["trees"], max_depth=spec["depth"], random_state=spec["seed"], n_jobs=1
+        )
     elif fam == "xforest":
-        mdl = ExtraTreesClassifier(n_estimators=spec["trees"], max_depth=spec["depth"], random_state=spec["seed"], n_jobs=1)
+        mdl = ExtraTreesClassifier(
+            n_estimators=spec["trees"], max_depth=spec["depth"], random_state=spec["seed"], n_jobs=1
+        )
     elif fam == "logreg":
         mdl = make_pipeline(StandardScaler(), LogisticRegression(C=spec["C"], max_iter=200))
     elif fam == "nb":
         mdl = GaussianNB()
     else:
-        mdl = HistGradientBoostingClassifier(max_iter=spec["iters"], max_depth=spec["depth"], random_state=spec["seed"])
+        mdl = HistGradientBoostingClassifier(
+            max_iter=spec["iters"], max_depth=spec["depth"], random_state=spec["seed"]
+        )
     mdl.fit(A, b)
     return mdl.predict(Xall[:, f]).astype(np.int8)
 
@@ -92,8 +103,8 @@ def main(out: Path, M: int = 800):
     specs = [make_spec(m) for m in range(M)]
     preds = Parallel(n_jobs=12, verbose=5)(delayed(fit_predict)(s, Xtr, ytr, X) for s in specs)
     P = np.stack(preds)  # (M, N) int8 in {0,1}
-    acc_hold = (P[:, N_TRAIN:N_TRAIN + N_HOLD] == y[N_TRAIN:N_TRAIN + N_HOLD]).mean(1)
-    acc_res = (P[:, N_TRAIN + N_HOLD:] == y[N_TRAIN + N_HOLD:]).mean(1)
+    acc_hold = (P[:, N_TRAIN : N_TRAIN + N_HOLD] == y[N_TRAIN : N_TRAIN + N_HOLD]).mean(1)
+    acc_res = (P[:, N_TRAIN + N_HOLD :] == y[N_TRAIN + N_HOLD :]).mean(1)
     np.savez(out / "pool.npz", P=P, y=y, n_train=N_TRAIN, n_hold=N_HOLD)
     digest = hashlib.sha256(P.tobytes() + y.tobytes()).hexdigest()
     (out / "pool_manifest.txt").write_text(

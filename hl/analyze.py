@@ -1,6 +1,7 @@
 """Evaluate the pre-registered hypotheses (PREREG.md) and draw the figures. Frozen before confirmatory seeds run.
-    python -m hl.analyze results/confirmatory.jsonl results/
+python -m hl.analyze results/confirmatory.jsonl results/
 """
+
 from __future__ import annotations
 
 import json
@@ -51,14 +52,21 @@ def evaluate(rows):
         rs = sel(rows, regime=reg, proposer="patch", gate="seq", rho=0.005, **base)
         v = rate(rs, lambda r: viol(r, "L_wald"))[2]
         over = mean(rs, "d_hat") - mean(rs, "d_true")
-        out.append(f"H1[{reg}] patch/seq: Wald violation {v:.2f} (need >=0.90); overstatement {over:+.4f} (need >=0.01)")
+        out.append(
+            f"H1[{reg}] patch/seq: Wald violation {v:.2f} (need >=0.90); overstatement {over:+.4f} (need >=0.01)"
+        )
         ok1 &= v >= 0.90 and over >= 0.01
     H["H1"] = ok1
 
     # H2: ledger validity over the whole grid
     k, n, r_ = rate(rows, lambda r: viol(r, "L_ledger"))
-    worst = max(((rate(g, lambda r: viol(r, "L_ledger"))[2], key) for key, g in groups(rows).items()), default=(0, None))
-    out.append(f"H2 ledger violations {k}/{n} = {r_:.4f}, one-sided 95% upper {cp_upper(k, n):.4f} (need <=0.05); worst cell {worst[0]:.3f} {worst[1]} (need <=0.05)")
+    worst = max(
+        ((rate(g, lambda r: viol(r, "L_ledger"))[2], key) for key, g in groups(rows).items()),
+        default=(0, None),
+    )
+    out.append(
+        f"H2 ledger violations {k}/{n} = {r_:.4f}, one-sided 95% upper {cp_upper(k, n):.4f} (need <=0.05); worst cell {worst[0]:.3f} {worst[1]} (need <=0.05)"
+    )
     H["H2"] = cp_upper(k, n) <= 0.05 and worst[0] <= 0.05
 
     # H3: zero-bit certificate (same family as the ledger) is invalid under attack
@@ -76,8 +84,12 @@ def evaluate(rows):
     patch = sel(rows, regime="early", proposer="patch", gate="seq", rho=0.005, **base)
     pp = rate(pool, lambda r: r["L_ledger"] > 0)[2]
     pa = rate(patch, lambda r: r["L_ledger"] > 0)[2]
-    ratio = float(np.median([r["L_ledger"] / r["d_true_pick"] for r in pool if r["d_true_pick"] > 0]))
-    out.append(f"H4 early seq K=1024 n=20000: certified>0 pool {pp:.2f} (>=0.95), patch {pa:.2f} (<=0.05); median certified/true on pool {ratio:.2f} (>=0.30)")
+    ratio = float(
+        np.median([r["L_ledger"] / r["d_true_pick"] for r in pool if r["d_true_pick"] > 0])
+    )
+    out.append(
+        f"H4 early seq K=1024 n=20000: certified>0 pool {pp:.2f} (>=0.95), patch {pa:.2f} (<=0.05); median certified/true on pool {ratio:.2f} (>=0.30)"
+    )
     H["H4"] = pp >= 0.95 and pa <= 0.05 and ratio >= 0.30
 
     # H5: complexity-priced gate
@@ -86,13 +98,17 @@ def evaluate(rows):
         s_ = sel(rows, regime="early", proposer=prop, gate="seq", rho=0.005, **base)
         m_ = sel(rows, regime="early", proposer=prop, gate="mdl", rho=0.005, **base)
         os_, om_ = mean(s_, "d_hat") - mean(s_, "d_true"), mean(m_, "d_hat") - mean(m_, "d_true")
-        out.append(f"H5a[{prop}] overstatement seq {os_:+.4f} -> mdl {om_:+.4f} (need mdl <= 0.2 x seq)")
+        out.append(
+            f"H5a[{prop}] overstatement seq {os_:+.4f} -> mdl {om_:+.4f} (need mdl <= 0.2 x seq)"
+        )
         ok5 &= om_ <= 0.2 * os_
     s_ = sel(rows, regime="early", proposer="pool", gate="seq", rho=0.005, **base)
     m_ = sel(rows, regime="early", proposer="pool", gate="mdl", rho=0.005, **base)
     keep = mean(m_, "d_true") / mean(s_, "d_true")
     dL = mean(m_, "L_ledger") - mean(s_, "L_ledger")
-    out.append(f"H5b pool: mdl keeps {keep:.3f} of seq true gain (need >=0.90); certified gain change {dL:+.4f} (need >=+0.02)")
+    out.append(
+        f"H5b pool: mdl keeps {keep:.3f} of seq true gain (need >=0.90); certified gain change {dL:+.4f} (need >=+0.02)"
+    )
     H["H5"] = ok5 and keep >= 0.90 and dL >= 0.02
 
     # H6: honest limit, late regime
@@ -103,24 +119,44 @@ def evaluate(rows):
         out.append(f"H6[n={nn}] late pool/seq certified>0 {v:.2f} (need <=0.10)")
         ok6 &= v <= 0.10
     rs = sel(rows, regime="late", proposer="pool", gate="seq", rho=0.005, n=100000, K=1024)
-    out.append(f"H6-info n=100000 late pool/seq certified>0 {rate(rs, lambda r: r['L_ledger'] > 0)[2]:.2f} (reported, not tested)")
+    out.append(
+        f"H6-info n=100000 late pool/seq certified>0 {rate(rs, lambda r: r['L_ledger'] > 0)[2]:.2f} (reported, not tested)"
+    )
     H["H6"] = ok6
 
     # H7: batching keeps progress
     s_ = sel(rows, regime="early", proposer="pool", gate="seq", rho=0.005, **base)
     b_ = sel(rows, regime="early", proposer="pool", gate="batch", rho=0.005, **base)
     r7 = mean(b_, "d_true") / mean(s_, "d_true")
-    out.append(f"H7 early pool K=1024: batch keeps {r7:.3f} of seq true gain (need >=0.80); bits {mean(b_, 'b_in'):.0f} vs {mean(s_, 'b_in'):.0f}")
+    out.append(
+        f"H7 early pool K=1024: batch keeps {r7:.3f} of seq true gain (need >=0.80); bits {mean(b_, 'b_in'):.0f} vs {mean(s_, 'b_in'):.0f}"
+    )
     H["H7"] = r7 >= 0.80
 
     # H8/H9: how tight is the worst-case radius, for an attacker versus a natural proposer?
     def tight(rs):
-        return float(np.median([(r["d_hat"] - r["d_true"]) / radius(min(r["b_in"], r["ell_full"]), r["n"], 0.05, 4, r["v_final"]) for r in rs]))
+        return float(
+            np.median(
+                [
+                    (r["d_hat"] - r["d_true"])
+                    / radius(min(r["b_in"], r["ell_full"]), r["n"], 0.05, 4, r["v_final"])
+                    for r in rs
+                ]
+            )
+        )
+
     t8 = tight(sel(rows, regime="early", proposer="patch", gate="seq", rho=0.005, **base))
-    out.append(f"H8 early patch/seq: median overstatement / ledger radius = {t8:.3f} (need >=0.10: the bound is not vacuous)")
+    out.append(
+        f"H8 early patch/seq: median overstatement / ledger radius = {t8:.3f} (need >=0.10: the bound is not vacuous)"
+    )
     H["H8"] = t8 >= 0.10
-    t9 = [tight(sel(rows, regime=reg, proposer="pool", gate="seq", rho=0.005, **base)) for reg in ("early", "late")]
-    out.append(f"H9 pool/seq median overstatement / ledger radius: early {t9[0]:.3f}, late {t9[1]:.3f} (need both <=0.10: natural proposers use little of the budget)")
+    t9 = [
+        tight(sel(rows, regime=reg, proposer="pool", gate="seq", rho=0.005, **base))
+        for reg in ("early", "late")
+    ]
+    out.append(
+        f"H9 pool/seq median overstatement / ledger radius: early {t9[0]:.3f}, late {t9[1]:.3f} (need both <=0.10: natural proposers use little of the budget)"
+    )
     H["H9"] = max(t9) <= 0.10
     return out, H
 
@@ -134,6 +170,7 @@ def groups(rows):
 
 def figures(rows, outdir: Path):
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -154,13 +191,33 @@ def figures(rows, outdir: Path):
             ax.plot(q, T[:, :, 2].mean(0), color=col[prop], ls="-", label=f"{prop} true")
             Ls = []
             for r in rs:
-                Ls.append([t[1] - radius(min(t[3], ell_full(int(t[4]), int(t[5]), 800, 5 if reg == "early" else 15)), 20000, 0.05, 2)
-                           for t in r["traj"]])
-            ax.plot(q, np.mean(Ls, 0), color=col[prop], ls=":", label=f"{prop} certified (final system)")
-        ax.set_xscale("log"); ax.set_xlabel("holdout queries"); ax.set_title(f"{reg} regime, n=20,000")
+                Ls.append(
+                    [
+                        t[1]
+                        - radius(
+                            min(
+                                t[3],
+                                ell_full(int(t[4]), int(t[5]), 800, 5 if reg == "early" else 15),
+                            ),
+                            20000,
+                            0.05,
+                            2,
+                        )
+                        for t in r["traj"]
+                    ]
+                )
+            ax.plot(
+                q, np.mean(Ls, 0), color=col[prop], ls=":", label=f"{prop} certified (final system)"
+            )
+        ax.set_xscale("log")
+        ax.set_xlabel("holdout queries")
+        ax.set_title(f"{reg} regime, n=20,000")
         ax.axhline(0, color="k", lw=0.5)
-    axs[0].set_ylabel("gain over reference system"); axs[1].legend(fontsize=7, ncol=1)
-    fig.tight_layout(); fig.savefig(fig_dir / "f1_admitted_true_certified.png", dpi=150); plt.close(fig)
+    axs[0].set_ylabel("gain over reference system")
+    axs[1].legend(fontsize=7, ncol=1)
+    fig.tight_layout()
+    fig.savefig(fig_dir / "f1_admitted_true_certified.png", dpi=150)
+    plt.close(fig)
 
     # F2: violation rates by certificate, K=1024, n=20000, seq
     fig, axs = plt.subplots(1, 2, figsize=(12, 3.8), sharey=True)
@@ -168,10 +225,21 @@ def figures(rows, outdir: Path):
         w = 0.25
         for i, prop in enumerate(("pool", "patch", "mixed")):
             rs = sel(rows, regime=reg, proposer=prop, gate="seq", rho=0.005, n=20000, K=1024)
-            ax.bar(np.arange(len(CERTS)) + (i - 1) * w, [rate(rs, lambda r, c=c: viol(r, c))[2] for c in CERTS], w, color=col[prop], label=prop)
-        ax.axhline(0.05, color="k", lw=0.8, ls="--"); ax.set_xticks(range(len(CERTS)), CERTS, fontsize=8); ax.set_title(reg)
-    axs[0].set_ylabel("violation rate (certified > true)"); axs[0].legend()
-    fig.tight_layout(); fig.savefig(fig_dir / "f2_violation_rates.png", dpi=150); plt.close(fig)
+            ax.bar(
+                np.arange(len(CERTS)) + (i - 1) * w,
+                [rate(rs, lambda r, c=c: viol(r, c))[2] for c in CERTS],
+                w,
+                color=col[prop],
+                label=prop,
+            )
+        ax.axhline(0.05, color="k", lw=0.8, ls="--")
+        ax.set_xticks(range(len(CERTS)), CERTS, fontsize=8)
+        ax.set_title(reg)
+    axs[0].set_ylabel("violation rate (certified > true)")
+    axs[0].legend()
+    fig.tight_layout()
+    fig.savefig(fig_dir / "f2_violation_rates.png", dpi=150)
+    plt.close(fig)
 
     # F3: admitted vs true gain by gate (early, n=20000, K=1024)
     fig, ax = plt.subplots(figsize=(5.6, 5))
@@ -180,16 +248,33 @@ def figures(rows, outdir: Path):
         for prop in ("pool", "patch", "mixed"):
             rs = sel(rows, regime="late", proposer=prop, gate=gate, rho=0.005, n=20000, K=1024)
             if rs:
-                ax.scatter(mean(rs, "d_true"), mean(rs, "d_hat"), marker=mk[gate], color=col[prop], s=70, label=f"{gate}/{prop}")
-    lim = ax.get_xlim(); ax.plot(lim, lim, "k-", lw=0.5); ax.set_xlabel("true gain (reserve)"); ax.set_ylabel("admitted gain (holdout)")
-    ax.set_title("late regime: above the line = overstated"); ax.legend(fontsize=6, ncol=2)
-    fig.tight_layout(); fig.savefig(fig_dir / "f3_overstatement_by_gate.png", dpi=150); plt.close(fig)
+                ax.scatter(
+                    mean(rs, "d_true"),
+                    mean(rs, "d_hat"),
+                    marker=mk[gate],
+                    color=col[prop],
+                    s=70,
+                    label=f"{gate}/{prop}",
+                )
+    lim = ax.get_xlim()
+    ax.plot(lim, lim, "k-", lw=0.5)
+    ax.set_xlabel("true gain (reserve)")
+    ax.set_ylabel("admitted gain (holdout)")
+    ax.set_title("late regime: above the line = overstated")
+    ax.legend(fontsize=6, ncol=2)
+    fig.tight_layout()
+    fig.savefig(fig_dir / "f3_overstatement_by_gate.png", dpi=150)
+    plt.close(fig)
 
 
 def main(path: Path, outdir: Path):
     rows = load(path)
     lines, H = evaluate(rows)
-    md = ["# Confirmatory results", f"{len(rows)} runs from `{path.name}`.", ""] + [f"- {l}" for l in lines] + ["", "## Verdicts"]
+    md = (
+        ["# Confirmatory results", f"{len(rows)} runs from `{path.name}`.", ""]
+        + [f"- {l}" for l in lines]
+        + ["", "## Verdicts"]
+    )
     md += [f"- **{k}: {'PASS' if v else 'FAIL'}**" for k, v in sorted(H.items())]
     (outdir / "RESULTS.md").write_text("\n".join(md) + "\n")
     print("\n".join(md))

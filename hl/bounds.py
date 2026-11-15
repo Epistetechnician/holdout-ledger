@@ -12,6 +12,7 @@ P(empirical gain - true gain >= t) <= exp(-n t^2 / 2) per fixed system, so the r
 2**bits systems at confidence delta over `routes` events is sqrt(2 (bits ln2 + ln(routes/delta)) / n).
 The concentration step is classical; nothing here claims a new inequality.
 """
+
 from __future__ import annotations
 
 import math
@@ -60,13 +61,23 @@ def wald_lower(dhat: float, vhat: float, n: int, z: float = 1.645) -> float:
     return dhat - z * math.sqrt(vhat / n)
 
 
-def certificates(dhat_final: float, dhat_core: float, n: int, delta: float, b_in: float,
-                 ell_final: float, ell_core_bits: float, v_final: float, v_core: float) -> dict:
+def certificates(
+    dhat_final: float,
+    dhat_core: float,
+    n: int,
+    delta: float,
+    b_in: float,
+    ell_final: float,
+    ell_core_bits: float,
+    v_final: float,
+    v_core: float,
+) -> dict:
     """Lower bounds on true gain. Each is valid at confidence 1 - delta for the route it names."""
     out = {
-        "L_wald": wald_lower(dhat_final, v_final, n),                  # common practice: fresh-holdout interval
-        "L_naive": dhat_final - radius(0.0, n, delta, 1, v_final),     # same family as the ledger, zero bits charged
-        "L_info": dhat_final - radius(b_in, n, delta, 1, v_final),     # information route only
+        "L_wald": wald_lower(dhat_final, v_final, n),  # common practice: fresh-holdout interval
+        "L_naive": dhat_final
+        - radius(0.0, n, delta, 1, v_final),  # same family as the ledger, zero bits charged
+        "L_info": dhat_final - radius(b_in, n, delta, 1, v_final),  # information route only
         "L_desc": dhat_final - radius(ell_final, n, delta, 1, v_final),  # description route only
     }
     # ledger: best of {final, core}, each charged min(info, description); 2 systems x 2 routes = 4 events

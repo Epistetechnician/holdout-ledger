@@ -3,6 +3,7 @@
 Each entry is chained to the previous head, so the bit total cannot be edited after the fact
 without breaking `verify()`. The total is what the certificate charges for.
 """
+
 from __future__ import annotations
 
 import hashlib
