@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Health gate: identical in git hooks and CI.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+ruff check .
+ruff format --check .
+[ "${HYGIENE_FULL:-1}" = "1" ] && python3 -m pytest -q
+echo "check ok"
